@@ -19,7 +19,7 @@ void setup() {
 	// možnosti jsou RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX,
 	// pro HIGH a MAX je nutný externí 3,3V zdroj
 	nRF.setPALevel(RF24_PA_LOW);
-	// nastavení zapisovacího a ètecího kanálu
+	// nastavení zapisovacího a ètecího kanálu 
 	nRF.openWritingPipe(adresaPrijimac);
 }
 
