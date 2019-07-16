@@ -101,7 +101,7 @@
     <ProjectCapability Include="VisualMicro" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\senzor kotelna.fzz" />
+    <None Include="..\sensor kotelna.fzz" />
     <None Include="sensor_kotelna.ino">
       <FileType>CppCode</FileType>
     </None>
@@ -112,7 +112,7 @@
     <ClInclude Include="__vm\.sensor_kotelna.vsarduino.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\senzor kotelna.JPG" />
+    <Image Include="..\sensor kotelna.PNG" />
   </ItemGroup>
   <PropertyGroup>
     <DebuggerFlavor>VisualMicroDebugger</DebuggerFlavor>

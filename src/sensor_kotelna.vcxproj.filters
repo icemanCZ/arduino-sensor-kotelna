@@ -16,7 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="sensor_kotelna.ino" />
-    <None Include="..\senzor kotelna.fzz">
+    <None Include="..\sensor kotelna.fzz">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
@@ -32,7 +32,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\senzor kotelna.JPG">
+    <Image Include="..\sensor kotelna.PNG">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
