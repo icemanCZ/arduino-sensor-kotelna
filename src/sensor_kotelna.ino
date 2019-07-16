@@ -1,40 +1,45 @@
-// pøipojení knihoven
+// libraries
 #include "shared.h"
-#include <SPI.h>
+//#include <SPI.h>
 #include "RF24.h"
 #include "max6675.h"
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include "U8glib.h"
 
 
 
 
 // RF24
-// inicializace nRF s piny CE a CS
-RF24 nRF(9, 10);
-// nastavení adres pro pøijímaè a vysílaè,
-// musí být nastaveny stejnì v obou programech!
-const byte RF_ADDRESS[] = "sensorKotelna";
-const int SEND_DELAY = 10000;
+RF24 nRF(9, 10);  // init pins CE, CS
+const unsigned long SEND_DELAY = 20 * 1000;
 
 
 
 // MAX6675
-MAX6675 ktc(8, 7, 12); // Create a Module (CLK, CS, SO)
+MAX6675 ktc(8, 7, 12); // init pins CLK, CS, SO
 
 
 
 
-// OneWIre senzory
+// OneWire sensors
 #define ONE_WIRE_BUS 2
 OneWire ds(ONE_WIRE_BUS);
 DallasTemperature senzoryDS(&ds);
-unsigned long lastTemperatureSent = 0;  // cas od posledniho nahlaseni interni teploty
-const unsigned long TEMPERATURE_INTERVAL = 60000; // interval nahlasovani interni teploty
+unsigned long lastInternalSensorValuesSent = 0;									// time from last internal sensor notification
+unsigned long lastOutputSensorValuesSent = 0;									// time from last water output sensor notification
+unsigned long lastReturnSensorValuesSent = 0;									// time from last wter return sensor notification
+unsigned long lastSmokeSensorValuesSent = 0;									// time from last smoke pipe sensor notification
+const unsigned long INTERNAL_SENSOR_VALUES_SEND_INTERVAL = 6UL * 60UL * 1000UL; // internal sensor notification interval
+const unsigned long SENSOR_VALUES_SEND_INTERVAL = 2UL * 60UL * 1000UL;			// other sensor notifications interval
 int oneWireDeviceCount = 0;
 const uint8_t SENSOR_ZPATECKA[8] = { 0x28, 0xAA, 0xBE, 0xB9, 0x4E, 0x14, 0x01, 0x2E };
 const uint8_t SENSOR_VYSTUP[8] = { 0x28, 0xAA, 0x51, 0xE5, 0x49, 0x14, 0x01, 0x2B };
 const uint8_t SENSOR_INTERNI[8] = { 0x28, 0xAA, 0xB3, 0x0D, 0x4B, 0x14, 0x01, 0x68 };
+
+
+// display
+U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NONE);
 
 
 
@@ -63,53 +68,6 @@ void printAddress(DeviceAddress deviceAddress)
 	Serial.println("");
 }
 
-void setup()
-{
-	// komunikace pøes sériovou linku rychlostí 9600 baud
-	Serial.begin(9600);
-
-	Serial.println(F("Startuji"));
-
-	// nastavim OneWire port
-	Serial.println(F("  IO porty"));
-	pinMode(ONE_WIRE_BUS, INPUT);
-
-	//vyhledam OneWire cidla
-	Serial.println(F("  OneWire cidla"));
-	senzoryDS.begin();
-	DeviceAddress Thermometer;
-	oneWireDeviceCount = senzoryDS.getDeviceCount();
-	for (int i = 0; i < oneWireDeviceCount; i++)
-	{
-		Serial.print("    Sensor ");
-		Serial.print(i + 1);
-		Serial.print(": ");
-		senzoryDS.getAddress(Thermometer, i);
-		printAddress(Thermometer);
-	}
-
-	// zapnutí komunikace nRF modulu
-	Serial.println(F("  RF24"));
-	nRF.begin();
-	nRF.stopListening();
-	// možnosti jsou RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX,
-	// pro HIGH a MAX je nutný externí 3,3V zdroj
-	nRF.setPALevel(RF24_PA_HIGH);
-	//nRF.disableDynamicPayloads();
-	//nRF.setDataRate(RF24_250KBPS);
-	//nRF.setAutoAck(false);
-	//nRF.setChannel(50);
-	nRF.openWritingPipe(RF_ADDRESS);
-
-
-	//Serial.println(F("Nastaveni nRF21: "));
-	//fdevopen(&serial_putc, 0);
-	//nRF.printDetails();
-	//Serial.println(F(""));
-
-	Serial.println(F("Nastartovano"));
-}
-
 void sendTemp(int id, float value)
 {
 	Serial.println("Odesilam teplotu cidla " + String(id) + ": " + String(value));
@@ -132,35 +90,119 @@ void sendTemp(int id, float value)
 	Serial.println(F("Odeslano"));
 }
 
+void setup()
+{
+	// serial line communication with 9600 baud
+	Serial.begin(9600);
+
+	Serial.println(F("Startuji"));
+
+	// set OneWire port
+	Serial.println(F("  IO porty"));
+	pinMode(ONE_WIRE_BUS, INPUT);
+
+	// find OneWire sensors
+	Serial.println(F("  OneWire cidla"));
+	senzoryDS.begin();
+	DeviceAddress Thermometer;
+	oneWireDeviceCount = senzoryDS.getDeviceCount();
+	for (int i = 0; i < oneWireDeviceCount; i++)
+	{
+		Serial.print("    Sensor ");
+		Serial.print(i + 1);
+		Serial.print(": ");
+		senzoryDS.getAddress(Thermometer, i);
+		printAddress(Thermometer);
+	}
+
+	// begin nRF24 communication
+	Serial.println(F("  RF24"));
+	nRF.begin();
+	nRF.stopListening();
+	// možnosti jsou RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX,
+	// pro HIGH a MAX je nutný externí 3,3V zdroj
+	nRF.setPALevel(RF24_PA_HIGH);
+	//nRF.disableDynamicPayloads();
+	//nRF.setDataRate(RF24_250KBPS);
+	//nRF.setAutoAck(false);
+	//nRF.setChannel(50);
+	nRF.openWritingPipe(RF_KOTELNA_ADDRESS);
+
+
+	//Serial.println(F("Nastaveni nRF21: "));
+	//fdevopen(&serial_putc, 0);
+	//nRF.printDetails();
+	//Serial.println(F(""));
+
+	// settle time
+	delay(2000);
+
+	Serial.println(F("Nastartovano"));
+}
+
 void loop()
 {
 	unsigned long time = millis();
 
-	if (time - lastTemperatureSent > TEMPERATURE_INTERVAL)
+
+	// read sensor values
+	// internal
+	senzoryDS.requestTemperatures();
+	float internalTemp = senzoryDS.getTempC(SENSOR_INTERNI);
+
+	// smoke
+	float smokeTemp = ktc.readCelsius();
+
+	// output
+	senzoryDS.requestTemperatures();
+	float outputTemp = senzoryDS.getTempC(SENSOR_VYSTUP);
+
+	// return
+	senzoryDS.requestTemperatures();
+	float returnTemp = senzoryDS.getTempC(SENSOR_ZPATECKA);
+
+
+	// print values on display
+
+	u8g.firstPage();
+	do {
+		u8g.setFont(u8g_font_7x14);
+		u8g.setPrintPos(0, 14);
+		u8g.print("Vystup: " + String(outputTemp));
+		u8g.setPrintPos(0, 28);
+		u8g.print("Zpatecka: " + String(returnTemp));
+		u8g.setPrintPos(0, 42);
+		u8g.print("Kourovod: " + String(smokeTemp));
+		u8g.setPrintPos(0, 56);
+		u8g.print("Vnitrni: " + String(internalTemp));
+	} while (u8g.nextPage());
+
+
+	// check notification intervals
+	if (time - lastInternalSensorValuesSent > INTERNAL_SENSOR_VALUES_SEND_INTERVAL)
 	{
-		// interni senzor
-		senzoryDS.requestTemperatures();
-		float temp = senzoryDS.getTempC(SENSOR_INTERNI);
-		sendTemp(SENSOR_KOTELNA_INTERNI_ID, temp);
-		delay(SEND_DELAY);
-
-		// kourovod
-		temp = ktc.readCelsius();
-		sendTemp(SENSOR_KOTELNA_KOUROVOD_ID, temp);
-		delay(SEND_DELAY);
-
-		// vystup
-		senzoryDS.requestTemperatures();
-		temp = senzoryDS.getTempC(SENSOR_VYSTUP);
-		sendTemp(SENSOR_KOTELNA_VYSTUP_ID, temp);
-		delay(SEND_DELAY);
-
-		// zpatecka
-		senzoryDS.requestTemperatures();
-		temp = senzoryDS.getTempC(SENSOR_ZPATECKA);
-		sendTemp(SENSOR_KOTELNA_ZPATECKA_ID, temp);
-		delay(SEND_DELAY);
-
-		lastTemperatureSent = time;
+		sendTemp(RF_SENSOR_KOTELNA_INTERNAL_TEMPERATURE_ID, internalTemp);
+		lastInternalSensorValuesSent = time;
 	}
+
+	if (time - lastOutputSensorValuesSent + SEND_DELAY> SENSOR_VALUES_SEND_INTERVAL)
+	{
+		sendTemp(RF_SENSOR_KOTELNA_SMOKE_TEMPERATURE_ID, outputTemp);
+		lastOutputSensorValuesSent = time;
+	}
+
+	if (time - lastReturnSensorValuesSent + SEND_DELAY * 2> SENSOR_VALUES_SEND_INTERVAL)
+	{
+		sendTemp(RF_SENSOR_KOTELNA_OUTPUT_TEMPERATURE_ID, returnTemp);
+		lastReturnSensorValuesSent = time;
+	}
+
+	if (time - lastSmokeSensorValuesSent + SEND_DELAY * 3> SENSOR_VALUES_SEND_INTERVAL)
+	{
+		sendTemp(RF_SENSOR_KOTELNA_RETURN_TEMPERATURE_ID, smokeTemp);
+		lastSmokeSensorValuesSent = time;
+	}
+
+
+	delay(1000);
 }
