@@ -12,7 +12,7 @@
 
 // RF24
 RF24 nRF(9, 10);  // init pins CE, CS
-const unsigned long SEND_DELAY = 20 * 1000;
+const unsigned long SEND_DELAY = 20UL * 1000UL;
 
 
 
@@ -68,8 +68,16 @@ void printAddress(DeviceAddress deviceAddress)
 	Serial.println("");
 }
 
+void clearDisplay() {
+	u8g.firstPage();
+	do {
+	} while (u8g.nextPage());
+}
+
 void sendTemp(int id, float value)
 {
+	clearDisplay();
+
 	Serial.println("Odesilam teplotu cidla " + String(id) + ": " + String(value));
 
 	if (!nRF.write(&id, sizeof(id)))
@@ -89,6 +97,8 @@ void sendTemp(int id, float value)
 	//}
 	Serial.println(F("Odeslano"));
 }
+
+
 
 void setup()
 {
@@ -140,6 +150,11 @@ void setup()
 	Serial.println(F("Nastartovano"));
 }
 
+unsigned long d1 = SEND_DELAY;
+unsigned long d2 = SEND_DELAY*2UL;
+unsigned long d3 = SEND_DELAY*3UL;
+
+
 void loop()
 {
 	unsigned long time = millis();
@@ -179,28 +194,30 @@ void loop()
 
 
 	// check notification intervals
-	if (time - lastInternalSensorValuesSent > INTERNAL_SENSOR_VALUES_SEND_INTERVAL)
+	if ((time - lastInternalSensorValuesSent) > INTERNAL_SENSOR_VALUES_SEND_INTERVAL)
 	{
 		sendTemp(RF_SENSOR_KOTELNA_INTERNAL_TEMPERATURE_ID, internalTemp);
 		lastInternalSensorValuesSent = time;
 	}
-
-	if (time - lastOutputSensorValuesSent + SEND_DELAY> SENSOR_VALUES_SEND_INTERVAL)
+	if ((time - lastOutputSensorValuesSent) > SENSOR_VALUES_SEND_INTERVAL + d1)
 	{
-		sendTemp(RF_SENSOR_KOTELNA_SMOKE_TEMPERATURE_ID, outputTemp);
+		sendTemp(RF_SENSOR_KOTELNA_OUTPUT_TEMPERATURE_ID, outputTemp);
 		lastOutputSensorValuesSent = time;
+		d1 = 0;
 	}
 
-	if (time - lastReturnSensorValuesSent + SEND_DELAY * 2> SENSOR_VALUES_SEND_INTERVAL)
+	if ((time - lastReturnSensorValuesSent) > SENSOR_VALUES_SEND_INTERVAL + d2)
 	{
-		sendTemp(RF_SENSOR_KOTELNA_OUTPUT_TEMPERATURE_ID, returnTemp);
+		sendTemp(RF_SENSOR_KOTELNA_RETURN_TEMPERATURE_ID, returnTemp);
 		lastReturnSensorValuesSent = time;
+		d2 = 0;
 	}
 
-	if (time - lastSmokeSensorValuesSent + SEND_DELAY * 3> SENSOR_VALUES_SEND_INTERVAL)
+	if ((time - lastSmokeSensorValuesSent) > SENSOR_VALUES_SEND_INTERVAL + d3)
 	{
-		sendTemp(RF_SENSOR_KOTELNA_RETURN_TEMPERATURE_ID, smokeTemp);
+		sendTemp(RF_SENSOR_KOTELNA_SMOKE_TEMPERATURE_ID, smokeTemp);
 		lastSmokeSensorValuesSent = time;
+		d3 = 0;
 	}
 
 
