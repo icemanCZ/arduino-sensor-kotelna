@@ -1,5 +1,5 @@
 // libraries
-#include "shared.h"
+#include "homeiot_shared.h"
 //#include <SPI.h>
 #include "RF24.h"
 #include "max6675.h"
@@ -42,19 +42,12 @@ const uint8_t SENSOR_INTERNI[8] = { 0x28, 0xAA, 0xB3, 0x0D, 0x4B, 0x14, 0x01, 0x
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NONE);
 
 
-
 //typedef struct {
 //	int sensorId;
 //	float value;
 //} payload;
 //
 //payload data;
-
-int serial_putc(char c, FILE*)
-{
-	Serial.write(c);
-	return c;
-}
 
 void printAddress(DeviceAddress deviceAddress)
 {
@@ -73,32 +66,6 @@ void clearDisplay() {
 	do {
 	} while (u8g.nextPage());
 }
-
-void sendTemp(int id, float value)
-{
-	clearDisplay();
-
-	Serial.println("Odesilam teplotu cidla " + String(id) + ": " + String(value));
-
-	if (!nRF.write(&id, sizeof(id)))
-	{
-		Serial.println(F("Chyba pri odesilani 1!"));
-	}
-	delay(10);
-	if (!nRF.write(&value, sizeof(value)))
-	{
-		Serial.println(F("Chyba pri odesilani 2!"));
-	}
-	//data.sensorId = id;
-	//data.value = value;
-	//if (!nRF.write(&data, sizeof(data)))
-	//{
-	//	Serial.println(F("Chyba pri odesilani!"));
-	//}
-	Serial.println(F("Odeslano"));
-}
-
-
 
 void setup()
 {
@@ -128,16 +95,12 @@ void setup()
 	// begin nRF24 communication
 	Serial.println(F("  RF24"));
 	nRF.begin();
-	nRF.stopListening();
-	// možnosti jsou RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX,
-	// pro HIGH a MAX je nutný externí 3,3V zdroj
-	nRF.setPALevel(RF24_PA_HIGH);
-	//nRF.disableDynamicPayloads();
-	//nRF.setDataRate(RF24_250KBPS);
-	//nRF.setAutoAck(false);
-	//nRF.setChannel(50);
-	nRF.openWritingPipe(RF_KOTELNA_ADDRESS);
+	initRF(nRF);
 
+	nRF.openWritingPipe(RF_KOTELNA_ADDRESS);
+	//nRF.openReadingPipe(1, RF_OUTSIDE_ADDRESS);
+
+	//nRF.startListening();
 
 	//Serial.println(F("Nastaveni nRF21: "));
 	//fdevopen(&serial_putc, 0);
@@ -196,30 +159,51 @@ void loop()
 	// check notification intervals
 	if ((time - lastInternalSensorValuesSent) > INTERNAL_SENSOR_VALUES_SEND_INTERVAL)
 	{
-		sendTemp(RF_SENSOR_KOTELNA_INTERNAL_TEMPERATURE_ID, internalTemp);
+		sendTemp(nRF, RF_SENSOR_KOTELNA_INTERNAL_TEMPERATURE_ID, internalTemp, true);
 		lastInternalSensorValuesSent = time;
 	}
 	if ((time - lastOutputSensorValuesSent) > SENSOR_VALUES_SEND_INTERVAL + d1)
 	{
-		sendTemp(RF_SENSOR_KOTELNA_OUTPUT_TEMPERATURE_ID, outputTemp);
+		sendTemp(nRF, RF_SENSOR_KOTELNA_OUTPUT_TEMPERATURE_ID, outputTemp, true);
 		lastOutputSensorValuesSent = time;
 		d1 = 0;
 	}
 
 	if ((time - lastReturnSensorValuesSent) > SENSOR_VALUES_SEND_INTERVAL + d2)
 	{
-		sendTemp(RF_SENSOR_KOTELNA_RETURN_TEMPERATURE_ID, returnTemp);
+		sendTemp(nRF, RF_SENSOR_KOTELNA_RETURN_TEMPERATURE_ID, returnTemp, true);
 		lastReturnSensorValuesSent = time;
 		d2 = 0;
 	}
 
 	if ((time - lastSmokeSensorValuesSent) > SENSOR_VALUES_SEND_INTERVAL + d3)
 	{
-		sendTemp(RF_SENSOR_KOTELNA_SMOKE_TEMPERATURE_ID, smokeTemp);
+		sendTemp(nRF, RF_SENSOR_KOTELNA_SMOKE_TEMPERATURE_ID, smokeTemp, true);
 		lastSmokeSensorValuesSent = time;
 		d3 = 0;
 	}
 
+
+	// proxy function
+
+	//if (nRF.available())
+	//{
+	//	// wait for data
+	//	while (nRF.available())
+	//	{
+	//		Serial.println(F("Preposilam nova data ze vzdaleneho senzoru"));
+
+
+	//		long sensorId;
+	//		float sensorValue;
+
+	//		if (!readData(nRF, &sensorId, &sensorValue))
+	//			break;
+
+	//		sendTemp(nRF, sensorId, sensorValue);
+	//	}
+	//	Serial.println();
+	//}
 
 	delay(1000);
 }
