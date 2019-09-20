@@ -29,6 +29,7 @@ DallasTemperature senzoryDS(&ds);
 unsigned long lastInternalSensorValuesSent = 0;									// time from last internal sensor notification
 unsigned long lastOutputSensorValuesSent = 0;									// time from last water output sensor notification
 unsigned long lastReturnSensorValuesSent = 0;									// time from last wter return sensor notification
+unsigned long lastGasKettleSensorValuesSent = 0;								// time from last gas kettle sensor notification
 unsigned long lastSmokeSensorValuesSent = 0;									// time from last smoke pipe sensor notification
 const unsigned long INTERNAL_SENSOR_VALUES_SEND_INTERVAL = 6UL * 60UL * 1000UL; // internal sensor notification interval
 const unsigned long SENSOR_VALUES_SEND_INTERVAL = 2UL * 60UL * 1000UL;			// other sensor notifications interval
@@ -36,6 +37,7 @@ int oneWireDeviceCount = 0;
 const uint8_t SENSOR_ZPATECKA[8] = { 0x28, 0xAA, 0xBE, 0xB9, 0x4E, 0x14, 0x01, 0x2E };
 const uint8_t SENSOR_VYSTUP[8] = { 0x28, 0xAA, 0x51, 0xE5, 0x49, 0x14, 0x01, 0x2B };
 const uint8_t SENSOR_INTERNI[8] = { 0x28, 0xAA, 0xB3, 0x0D, 0x4B, 0x14, 0x01, 0x68 };
+const uint8_t SENSOR_PLYN[8] = { 0x28, 0xAA, 0x53, 0x39, 0x40, 0x14, 0x01, 0x35 };
 
 
 // display
@@ -116,6 +118,7 @@ void setup()
 unsigned long d1 = SEND_DELAY;
 unsigned long d2 = SEND_DELAY*2UL;
 unsigned long d3 = SEND_DELAY*3UL;
+unsigned long d4 = SEND_DELAY*4UL;
 
 
 void loop()
@@ -128,16 +131,17 @@ void loop()
 	senzoryDS.requestTemperatures();
 	float internalTemp = senzoryDS.getTempC(SENSOR_INTERNI);
 
-	// smoke
-	float smokeTemp = ktc.readCelsius();
-
 	// output
-	senzoryDS.requestTemperatures();
 	float outputTemp = senzoryDS.getTempC(SENSOR_VYSTUP);
 
 	// return
-	senzoryDS.requestTemperatures();
 	float returnTemp = senzoryDS.getTempC(SENSOR_ZPATECKA);
+
+	// gas kettle
+	float gasKettleTemp = senzoryDS.getTempC(SENSOR_PLYN);
+
+	// smoke
+	float smokeTemp = ktc.readCelsius();
 
 
 	// print values on display
@@ -152,7 +156,7 @@ void loop()
 		u8g.setPrintPos(0, 42);
 		u8g.print("Kourovod: " + String(smokeTemp));
 		u8g.setPrintPos(0, 56);
-		u8g.print("Vnitrni: " + String(internalTemp));
+		u8g.print("Plyn: " + String(gasKettleTemp));
 	} while (u8g.nextPage());
 
 
@@ -181,6 +185,13 @@ void loop()
 		sendTemp(nRF, RF_SENSOR_KOTELNA_SMOKE_TEMPERATURE_ID, smokeTemp, true);
 		lastSmokeSensorValuesSent = time;
 		d3 = 0;
+	}
+
+	if ((time - lastGasKettleSensorValuesSent) > SENSOR_VALUES_SEND_INTERVAL + d4)
+	{
+		sendTemp(nRF, RF_SENSOR_KOTELNA_SMOKE_TEMPERATURE_ID, gasKettleTemp, true);
+		lastGasKettleSensorValuesSent = time;
+		d4 = 0;
 	}
 
 
