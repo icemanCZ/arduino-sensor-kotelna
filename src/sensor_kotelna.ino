@@ -189,7 +189,7 @@ void loop()
 
 	if ((time - lastGasKettleSensorValuesSent) > SENSOR_VALUES_SEND_INTERVAL + d4)
 	{
-		sendTemp(nRF, RF_SENSOR_KOTELNA_SMOKE_TEMPERATURE_ID, gasKettleTemp, true);
+		sendTemp(nRF, RF_SENSOR_KOTELNA_GAS_KETTLE_TEMPERATURE_ID, gasKettleTemp, true);
 		lastGasKettleSensorValuesSent = time;
 		d4 = 0;
 	}
